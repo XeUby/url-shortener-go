@@ -38,7 +38,6 @@ Layer responsibilities:
 **Request**
 `POST /shorten`
 
-```json
 { "url": "https://google.com" }
 
 Response
