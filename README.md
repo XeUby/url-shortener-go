@@ -96,6 +96,7 @@ curl
 curl -X POST "http://localhost:8080/shorten" \
   -H "Content-Type: application/json" \
   --data-raw '{"url":"https://google.com"}'
+  
 Possible Improvements
 
 Persistent storage (PostgreSQL/Redis)
