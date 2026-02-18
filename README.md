@@ -1,112 +1,122 @@
-# Mini URL Shortener (Go) — REST API + Tests
+Mini URL Shortener in Go
 
-A small, interview-friendly URL shortener written in Go.
-It exposes a REST API to create short links, redirects by code, and provides basic stats (clicks).
-Storage is in-memory, architecture is layered (handler/service/storage), and the project includes unit + HTTP tests.
+Interview-friendly REST API for URL shortening written in pure Go (minimal dependencies).
 
-## Features
+Features
+- POST /shorten — create short URL from a long one
+- GET /{code} — 302 redirect to the original URL
+- GET /stats/{code} — view original URL and click count
+- In-memory storage (thread-safe with sync.RWMutex)
+- URL validation (http/https only)
+- Collision handling (retry on duplicate short codes)
+- Unit tests + HTTP integration tests using httptest
+- Clean layered architecture: handler → service → storage
 
-- **POST /shorten** — create short URL from a long URL
-- **GET /{code}** — redirect to original URL (302)
-- **GET /stats/{code}** — get original URL + clicks
-- In-memory storage (thread-safe)
-- URL validation (`http/https`)
-- Collision handling (retry on duplicate code)
-- Unit tests for storage/service + HTTP tests for handlers
-
-## Project Structure
-
-
+Project Structure
 url-shortener/
 ├── main.go
 ├── handler/
+│   └── handler.go
 ├── service/
+│   └── service.go
 ├── storage/
-└── model/
+│   └── storage.go
+├── model/
+│   └── model.go
+└── README.md
 
+Layer Responsibilities
+- handler: HTTP routing, request/response parsing, status codes
+- service: Business logic (validation, short code generation, retry logic)
+- storage: In-memory persistence (map + RWMutex for concurrency safety)
+- model: Shared structs (request/response DTOs)
 
-Layer responsibilities:
-- **handler** — HTTP layer (routing, JSON, status codes)
-- **service** — business logic (validation, code generation, retries)
-- **storage** — persistence (in-memory map + RWMutex)
-- **model** — DTO/domain structs
+API Endpoints
 
-## API
-
-### 1) Create short URL
-
-**Request**
-`POST /shorten`
-
-{ "url": "https://google.com" }
-
-Response
-
-{ "short_url": "http://localhost:8080/abc123xy" }
-2) Redirect
-
-GET /{code} → 302 Found with Location: <original_url>
-
-3) Stats
-
-GET /stats/{code}
-
-Response
+1. Create Short URL
+POST /shorten
+Content-Type: application/json
 
 {
-  "code": "abc123xy",
-  "original_url": "https://google.com",
-  "clicks": 3
+  "url": "https://example.com/very/long/path"
 }
-Run
+
+Response (201 Created)
+{
+  "short_url": "http://localhost:8080/x7k9p2m"
+}
+
+2. Redirect
+GET /{code}    e.g. GET /x7k9p2m
+
+→ 302 Found
+Location: https://example.com/very/long/path
+
+3. Get Stats
+GET /stats/{code}    e.g. GET /stats/x7k9p2m
+
+Response (200 OK)
+{
+  "code": "x7k9p2m",
+  "original_url": "https://example.com/very/long/path",
+  "clicks": 5
+}
+
+Quick Start
+
+git clone https://github.com/yourusername/url-shortener.git
+cd url-shortener
 go run .
 
-Server starts on :8080.
+Server starts on :8080
 
-BASE_URL (optional)
-
-By default responses use http://localhost:8080.
-You can override:
-
-PowerShell
-
-$env:BASE_URL="http://localhost:8080"
+Optional: set base URL for generated short links
+export BASE_URL="https://your-domain.com"
 go run .
-Test
+
+Running Tests
+
+# Run all tests
 go test ./... -v
-Example requests
-PowerShell (recommended)
 
-Create:
+# Run with coverage
+go test ./... -coverprofile=cover.out
+go tool cover -html=cover.out
 
+Example Requests (PowerShell)
+
+# Create short URL
 Invoke-RestMethod -Method Post -Uri "http://localhost:8080/shorten" `
   -ContentType "application/json" `
   -Body '{"url":"https://google.com"}'
 
-Redirect (show headers only, no auto-follow):
-
-$code = "abc123xy"
+# Check redirect (headers only, no follow)
+$code = "x7k9p2m"
 Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8080/$code" -MaximumRedirection 0 |
   Select-Object StatusCode, Headers
 
-Stats:
-
+# Get stats
 Invoke-RestMethod "http://localhost:8080/stats/$code"
-curl
+
+Example Requests (curl)
+
 curl -X POST "http://localhost:8080/shorten" \
   -H "Content-Type: application/json" \
-  --data-raw '{"url":"https://google.com"}'
-  
-Possible Improvements
+  -d '{"url":"https://google.com"}'
 
-Persistent storage (PostgreSQL/Redis)
+curl -i "http://localhost:8080/x7k9p2m"          # redirect
+curl "http://localhost:8080/stats/x7k9p2m"       # stats
 
-Custom alias support (/shorten with custom_code)
+Possible Improvements / Roadmap
+- Persistent storage (PostgreSQL, Redis, SQLite, BadgerDB)
+- Custom short codes / vanity URLs
+- Link expiration (TTL)
+- Rate limiting & abuse protection
+- Analytics dashboard
+- Prometheus metrics + structured logging (slog/zap)
+- Docker + docker-compose
+- HTTPS support
+- Graceful shutdown
+- OpenAPI/Swagger documentation
+- CI pipeline (GitHub Actions: test, lint, build)
 
-Expiration / TTL
-
-Rate limiting
-
-Observability: structured logs + metrics
-
-Dockerfile + CI (GitHub Actions)
